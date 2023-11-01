@@ -71,7 +71,7 @@ app.use("/api/notification", notifiRouter);
 
 // PORT 
 app.listen(PORT, () => {
-  logger.info(`App is running on ${PORT}`);
+  logger.info(`App is running on port: ${PORT}`);
 });
 
 // Logger / combined / Error File
