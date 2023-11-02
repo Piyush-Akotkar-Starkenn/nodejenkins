@@ -13,12 +13,6 @@ pipeline {
 			}
 		}
 
-        stage('Build') {
-            steps {
-                sh 'npm install'
-            }
-        }
-
         stage('Stop and Remove Previous Container') {
             steps {
                 sh 'docker stop piyushakotkar/jenkinsnode || true'
