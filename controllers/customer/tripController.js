@@ -21,7 +21,7 @@ exports.getTripSummary = async (req, res) => {
     const [results] = await connection.execute(query, [vehicle_uuid, 1]);
 
     if (results.length === 0) {
-      return res.status(404).send({ error: "Trip data not found!" });
+      logger.info(`Trip data not found for vehicle ${vehicle_uuid}`);
     }
 
     res.status(200).send({
@@ -46,7 +46,7 @@ exports.getOngoingTripdata = async (req, res) => {
     const { vehicle_uuid } = req.params;
 
     const tripID = await getTripdataByVehicleUUID(vehicle_uuid);
-    console.log(tripID);
+    // console.log(tripID);
     if (tripID) {
       const [getTripdata] = await pool.query(
         "SELECT event, message, timestamp, lat, lng, spd FROM tripdata WHERE trip_id = ? ORDER BY timestamp ASC",
