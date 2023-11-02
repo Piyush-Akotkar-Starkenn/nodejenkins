@@ -15,9 +15,14 @@ pipeline {
 
         stage('Stop and Remove Previous Container') {
             steps {
-                sh 'docker stop piyushakotkar/jenkinsnode || true'
-                sh 'docker rm piyushakotkar/jenkinsnode || true'
-            }
+				script {
+					def containerId = sh(script: 'docker ps -aq --filter "name=piyushakotkar/jenkinsnode"', returnStatus: true).trim()
+					if (containerId) {
+						sh "docker stop ${containerId}"
+						sh "docker rm ${containerId}"
+					}
+				}
+			}
         }
 
 		stage('Docker Build') {
