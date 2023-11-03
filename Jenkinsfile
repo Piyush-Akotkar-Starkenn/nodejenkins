@@ -13,13 +13,6 @@ pipeline {
 			}
 		}
 
-        stage('Stop and Remove Previous Container') {
-            steps {
-                sh 'docker stop piyushakotkar/jenkinsnode || true'
-                sh 'docker rm piyushakotkar/jenkinsnode || true'
-            }
-        }
-
 		stage('Docker Build') {
 
 			steps {
@@ -40,6 +33,13 @@ pipeline {
 				sh 'docker push piyushakotkar/jenkinsnode:latest'
 			}
 		}
+
+		stage('Stop and Remove Previous Container') {
+            steps {
+                sh 'docker stop piyushakotkar/jenkinsnode || true'
+                sh 'docker rm piyushakotkar/jenkinsnode || true'
+            }
+        }
 
         stage('Run Docker Container') {
             steps {
