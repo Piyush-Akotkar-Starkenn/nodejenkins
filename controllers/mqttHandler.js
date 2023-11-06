@@ -167,7 +167,10 @@ const completeTrip = async (tripID) => {
         tripdata.forEach((item, index) => {
           // Set lat lng data
           if (item.event == "LOC") {
-            let geodata = { latitude: item.lat, longitude: item.lng };
+            let geodata = {
+              latitude: parseFloat(item.lat),
+              longitude: parseFloat(item.lng),
+            };
             path.push(geodata);
           }
 
@@ -215,13 +218,16 @@ const completeTrip = async (tripID) => {
           }
         }
 
+        if (isNaN(distance)) {
+          distance = 0;
+        }
         // Update to trip summary page
         const [updateTrip] = await pool.query(
           "UPDATE trip_summary SET trip_end_time = ?, total_distance = ?, duration = ?, avg_spd =?, max_spd = ?, trip_status =? WHERE trip_id = ?",
-          [tripEndTime, distance, duration, avgSpd, maxSpd, 1, tripID]
+          [tripEndTime, distance, duration, averageSpeed, maxSpd, 1, tripID]
         );
         if (updateTrip.affectedRows > 0) {
-          logger.info(`Trip completed tripID: tripID`);
+          logger.info(`Trip completed tripID: ${tripID}`);
         }
       } else {
         logger.info("Trip data not found for the Trip ID", tripID);

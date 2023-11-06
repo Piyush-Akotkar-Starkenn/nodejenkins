@@ -34,7 +34,10 @@ const cronJobForEndTrip = async () => {
             tripdata.forEach((item, index) => {
               // Set lat lng data
               if (item.event == "LOC") {
-                let geodata = { latitude: item.lat, longitude: item.lng };
+                let geodata = {
+                  latitude: parseFloat(item.lat),
+                  longitude: parseFloat(item.lng),
+                };
                 path.push(geodata);
               }
 
@@ -82,13 +85,17 @@ const cronJobForEndTrip = async () => {
               }
             }
 
+            if (isNaN(distance)) {
+              distance = 0;
+            }
             // Update to trip summary page
             const [updateTrip] = await pool.query(
               "UPDATE trip_summary SET trip_end_time = ?, total_distance = ?, duration = ?, avg_spd =?, max_spd = ?, trip_status =? WHERE trip_id = ?",
-              [tripEndTime, distance, duration, avgSpd, maxSpd, 1, tripID]
+              [tripEndTime, distance, duration, averageSpeed, maxSpd, 1, tripID]
             );
-
-            logger.info("Trip completed:", updateTrip);
+            if (updateTrip.affectedRows > 0) {
+              logger.info(`Trip completed tripID: ${tripID}`);
+            }
           } else {
             logger.info("Found data within 30min so trip will not end.");
           }
