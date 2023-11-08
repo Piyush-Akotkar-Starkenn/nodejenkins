@@ -6,6 +6,11 @@ const pkg = require("geolib");
 const { sendEmail } = require("../middleware/mailer");
 const { deleteFeatureset } = require("./admin/featuresetController");
 
+const moment = require("moment-timezone");
+let currentTimeIST = moment
+  .tz(contact_created_at, "Asia/Kolkata")
+  .format("YYYY-MM-DD HH:mm:ss");
+
 const setupMQTT = () => {
   // On connect to MQTT then Function to retrieve topics from the database
   client.on("connect", async () => {
@@ -257,50 +262,57 @@ const storeJsonInDatabase = async (validatedJson) => {
       return;
     }
 
-    // create new trip id
-    const tripUUID = uuidv4();
+    if (validatedJson.td.lat != null && validatedJson.td.lng != null) {
+      // create new trip id
+      const tripUUID = uuidv4();
 
-    // Trip summary data to create trip summary
-    const tripSummaryData = [
-      tripUUID,
-      vehicleData[0].user_uuid,
-      vehicleData[0].vehicle_uuid,
-      deviceIDD,
-      validatedJson.timestamp,
-      0,
-    ];
+      // Trip summary data to create trip summary
+      const tripSummaryData = [
+        tripUUID,
+        vehicleData[0].user_uuid,
+        vehicleData[0].vehicle_uuid,
+        deviceIDD,
+        validatedJson.timestamp,
+        0,
+        currentTimeIST,
+      ];
 
-    const vehicle_uuid = vehicleData[0].vehicle_uuid;
-    const tripID = await createTripSummary(
-      tripSummaryData,
-      vehicle_uuid,
-      deviceIDD
-    );
-    // console.log(tripID);
-    // Data to insert into Trip data
-    const tripdata = [
-      tripID,
-      deviceIDD,
-      vehicle_uuid,
-      validatedJson.event,
-      validatedJson.message,
-      validatedJson.timestamp,
-      validatedJson.ignition,
-      validatedJson.td.lat,
-      validatedJson.td.lng,
-      validatedJson.td.spd,
-      JSON.stringify(validatedJson),
-    ];
+      const vehicle_uuid = vehicleData[0].vehicle_uuid;
+      const tripID = await createTripSummary(
+        tripSummaryData,
+        vehicle_uuid,
+        deviceIDD
+      );
+      // console.log(tripID);
+      // Data to insert into Trip data
+      const tripdata = [
+        tripID,
+        deviceIDD,
+        vehicle_uuid,
+        validatedJson.event,
+        validatedJson.message,
+        validatedJson.timestamp,
+        validatedJson.ignition,
+        validatedJson.td.lat,
+        validatedJson.td.lng,
+        validatedJson.td.spd,
+        JSON.stringify(validatedJson),
+        currentTimeIST,
+      ];
 
-    await connection.query(
-      "INSERT INTO tripdata (trip_id, device_id, vehicle_uuid, event, message, timestamp, igs, lat, lng, spd, jsondata, created_at) VALUES (?, NOW())",
-      [tripdata]
-    );
-    logger.info("Stored Tripdata in the database");
+      await connection.query(
+        "INSERT INTO tripdata (trip_id, device_id, vehicle_uuid, event, message, timestamp, igs, lat, lng, spd, jsondata, created_at) VALUES (?)",
+        [tripdata]
+      );
+      logger.info("Stored Tripdata in the database");
 
-    if (validatedJson.event === "LMP" || validatedJson.event === "ACD") {
-      // Alert triggers
-      await trigerMode(validatedJson.event, vehicle_uuid);
+      if (validatedJson.event === "LMP" || validatedJson.event === "ACD") {
+        // Alert triggers
+        await trigerMode(validatedJson.event, vehicle_uuid);
+      }
+    } else {
+      logger.info(`Telematics data is null for the device ${deviceIDD}`);
+      return;
     }
   } catch (error) {
     logger.error(`Error storing Tripdata in database: ${error.message}`);
@@ -353,7 +365,7 @@ const createTripSummary = async (tripSummaryData, vehicle_uuid, deviceIDD) => {
       const insertConnection = await pool.getConnection();
       try {
         await insertConnection.query(
-          "INSERT INTO trip_summary (trip_id, user_uuid, vehicle_uuid, device_id, trip_start_time, trip_status, created_at) VALUES (?,NOW())",
+          "INSERT INTO trip_summary (trip_id, user_uuid, vehicle_uuid, device_id, trip_start_time, trip_status, created_at) VALUES (?)",
           [tripSummaryData]
         );
 
@@ -423,8 +435,8 @@ const storeInvalidJsonInDatabase = async (topic, message) => {
   const connection = await pool.getConnection();
   try {
     await connection.query(
-      "INSERT INTO invalid_tripdata (topic, message) VALUES (?, ?, NOW())",
-      [topic, message]
+      "INSERT INTO invalid_tripdata (topic, message) VALUES (?, ?, ?)",
+      [topic, message, currentTimeIST]
     );
 
     logger.info("Stored invalid Tripdata in the database");
@@ -447,8 +459,10 @@ const trigerMode = async (event, vehicleUUID) => {
       [vehicleUUID, event, 1]
     );
     if (triggers.length > 0) {
-      // console.log(triggers);
-      sendEmail("piyush@starkenn.com", `${event} mode due to Some reason...`);
+      const parseTrigger = JSON.parse(triggers[0].recipients);
+      parseTrigger.forEach((row) => {
+        sendEmail(row.email, `${event} mode due to Some reason...`);
+      });
     } else {
       // logger.info(`No alert trigger found`);
       return;
